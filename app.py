@@ -1,6 +1,9 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_mysqldb import MySQL
 import pymysql
+import MySQLdb.cursors
+
+from base64 import b64encode
 
 app = Flask(__name__)
 app.secret_key = 'many random bytes'
@@ -9,7 +12,6 @@ app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'veindetection'
-
 mysql = MySQL(app)
 
 
@@ -23,21 +25,67 @@ class Database:
                                    DictCursor)
         self.cur = self.con.cursor()
 
+    def convertToBinaryData(filename):
+        # Convert digital data to binary format
+        with open(filename, 'wb') as file:
+            binaryData = file.read()
+        return binaryData
+
     def list_of_patients(self):
         self.cur.execute("SELECT * from patients_data_table")
         result = self.cur.fetchall()
+
+        for row in result:
+            row['veinimage'] = b64encode(row['veinimage']).decode("utf-8")
         return result
 
 
-@app.route('/')
-def myApp():
-    def db_query():
-        db = Database()
-        patients = db.list_of_patients()
-        return patients
+@app.route('/', methods=['GET', 'POST'])
+def login():
+    # Output message if something goes wrong...
+    msg = ''
+    # Check if "username" and "password" POST requests exist (user submitted form)
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+        # Create variables for easy access
+        username = request.form['username']
+        password = request.form['password']
+        # Check if account exists using MySQL
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute('SELECT * FROM accounts WHERE username = %s AND password = %s', (username, password))
+        # Fetch one record and return result
+        account = cursor.fetchone()
+        # If account exists in accounts table in out database
+        if account:
+            # Create session data, we can access this data in other routes
+            session['loggedin'] = True
+            session['id'] = account['id']
+            session['username'] = account['username']
+            # Redirect to home page
+            return redirect(url_for('home'))
+        else:
+            # Account doesnt exist or username/password incorrect
+            msg = 'Incorrect username/password!'
+    # Show the login form with message (if any)
+    return render_template('LoginForm.html', msg=msg)
 
-    res = db_query()
-    return render_template('PatientsDataTable.html', result=res, content_type='application/json')
+
+@app.route('/home')
+def home():
+    # Check if user is loggedin
+    if 'loggedin' in session:
+        # User is loggedin show them the home page
+        # API Call
+        def db_query():
+            db = Database()
+            patients = db.list_of_patients()
+            return patients
+
+        res = db_query()
+        return render_template('PatientsDataTable.html', result=res, content_type='application/json')
+
+    # User is not loggedin redirect to login page
+    return redirect('login')
+
 
 @app.route('/insert', methods=['POST'])
 def insert():
@@ -66,6 +114,7 @@ def insert():
         mysql.connection.commit()
         return redirect(url_for('myApp'))
 
+
 @app.route('/update', methods=['POST', 'GET'])
 def updateData():
     if request.method == 'POST':
@@ -90,13 +139,14 @@ def updateData():
                    SET patientid=%s, firstname=%s, lastname=%s, middlename=%s, phonenumber=%s, address=%s, city=%s, municipality=%s, zipcode=%s, nationality=%s, civilstatus=%s, email=%s, birthdate=%s, birthplace=%s
                    WHERE id=%s
                 """, (
-        patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode, nationality,
-        civilstatus, email, birthdate, birthplace, id))
+            patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode, nationality,
+            civilstatus, email, birthdate, birthplace, id))
         flash("Data Updated Successfully")
         mysql.connection.commit()
         return redirect(url_for('myApp'))
 
-@app.route('/delete/<string:id>', methods = ['POST'])
+
+@app.route('/delete/<string:id>', methods=['POST'])
 def delete(id):
     cur = mysql.connection.cursor()
     cur.execute("DELETE FROM patients_data_table WHERE id=%s", (id,))
