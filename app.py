@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_mysqldb import MySQL
 import pymysql
 import MySQLdb.cursors
+import os
 
 from base64 import b64encode
 
@@ -13,7 +14,7 @@ app.config['MYSQL_USER'] = 'root'
 app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'veindetection'
 mysql = MySQL(app)
-
+patientids = ''
 
 class Database:
     def __init__(self):
@@ -33,6 +34,14 @@ class Database:
 
     def list_of_patients(self):
         self.cur.execute("SELECT * from patients_data_table")
+        result = self.cur.fetchall()
+
+        for row in result:
+            row['veinimage'] = b64encode(row['veinimage']).decode("utf-8")
+        return result
+
+    def patient_info(self):
+        self.cur.execute("SELECT * FROM patients_data_table WHERE id=%s", (patientids))
         result = self.cur.fetchall()
 
         for row in result:
@@ -87,6 +96,13 @@ def home():
     return redirect('login')
 
 
+def convertToBinaryDataFile(filename):
+    # Convert digital data to binary format
+    with open(filename, 'rb') as file:
+        binaryData = file.read()
+    return binaryData
+
+
 @app.route('/insert', methods=['POST'])
 def insert():
     if request.method == "POST":
@@ -105,14 +121,27 @@ def insert():
         email = request.form['email']
         birthdate = request.form['birthdate']
         birthplace = request.form['birthplace']
+        if request.form.get('filePath') is None:
+            _filePath = ''
+        else:
+            _filePath = request.form.get('filePath')
+        if request.form.get('private') is None:
+            _private = 0
+        else:
+            _private = 1
+        if request.form.get('done') is None:
+            _done = 0
+        else:
+            _done = 1
+
         cur = mysql.connection.cursor()
         cur.execute("INSERT INTO patients_data_table "
                     "(patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode, nationality, civilstatus, email, birthdate, birthplace) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (
                         patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode,
-                        nationality, civilstatus, email, birthdate, birthplace))
+                        nationality, civilstatus, email, birthdate, birthplace, _filePath))
         mysql.connection.commit()
-        return redirect(url_for('myApp'))
+        return redirect(url_for('home'))
 
 
 @app.route('/update', methods=['POST', 'GET'])
@@ -153,3 +182,23 @@ def delete(id):
     mysql.connection.commit()
     flash("Record Has Been Deleted Successfully")
     return redirect(url_for('myApp'))
+
+
+@app.route('/profileinformation/<patientid>')
+def profileInfo(patientid):
+    global patientids
+    patientids = patientid
+
+    def db_query():
+        db = Database()
+        patients = db.patient_info()
+        return patients
+
+    res = db_query()
+    """def get_profile_info():
+        cur = mysql.connection.cursor()
+        cur.execute('SELECT * FROM patients_data_table WHERE id=%s', (patientid))
+        result = cur.fetchone()
+        return result"""
+
+    return render_template('ProfileInformation.html', result=res, content_type='application/json')

@@ -411,9 +411,7 @@
                         </td>
                         <td>
                             <a class="eye"
-                               href="/update/{{ row.id }}"
-                               data-toggle="modal"
-                               data-target="#editEmployeeModal{{ row.patientId }}"
+                               href="{{ url_for('profileInfo', patientid=row.id) }}"
                                style="cursor: pointer">
                                 <i class="material-icons"
                                    data-toggle="tooltip"
@@ -422,7 +420,7 @@
                             <a class="edit"
                                href="/update/{{ row.id }}"
                                data-toggle="modal"
-                               data-target="#editEmployeeModal{{ row.patientId }}"
+                               data-target="#editPatientModal{{ row.patientId }}"
                                style="cursor: pointer">
                                 <i class="material-icons"
                                    data-toggle="tooltip"
@@ -430,7 +428,7 @@
                             </a>
                             <a href="/update/{{ row.id }}"
                                class="delete"
-                               data-target="#deleteEmployeeModal{{ row.id }}"
+                               data-target="#deletePatientModal{{ row.id }}"
                                data-toggle="modal">
                                 <i class="material-icons"
                                    data-toggle="tooltip"
@@ -438,12 +436,12 @@
                             </a>
 
                             <!-- Edit Modal HTML -->
-                            <div id="editEmployeeModal{{ row.patientId }}" class="modal fade">
+                            <div id="editPatientModal{{ row.patientId }}" class="modal fade">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
                                         <form action="{{ url_for('updateData') }}" method="POST">
                                             <div class="modal-header">
-                                                <h4 class="modal-title">Edit Employee</h4>
+                                                <h4 class="modal-title">Edit Patient</h4>
                                                 <button type="button" class="close" data-dismiss="modal"
                                                         aria-hidden="true">&times;
                                                 </button>
@@ -566,7 +564,7 @@
                             </div>
 
                             <!-- Delete Modal HTML -->
-                            <div id="deleteEmployeeModal{{ row.id }}" class="modal fade">
+                            <div id="deletePatientModal{{ row.id }}" class="modal fade">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
                                         <form action="delete/{{ row.id }}" method="POST">
@@ -704,6 +702,7 @@
                             <div id="vid-canvas"
                                  class="image-preview"
                                  style="height: 110px;"></div>
+                            <input id="file-type" type="file" accept="image/*;capture=camera"/>
                         </div>
                     </div>
                 </div>
@@ -737,12 +736,12 @@
                 // [3] SHOW VIDEO STREAM ON VIDEO TAG
                 video.srcObject = stream;
                 video.play();
-
                 // [4] WHEN WE CLICK ON "TAKE PHOTO" BUTTON
                 take.addEventListener("click", function () {
 
                     document.getElementById("vid-canvas").style.display = "block";
                     // Create snapshot from video
+
                     var draw = document.createElement("canvas");
                     draw.width = video.videoWidth;
                     draw.height = video.videoHeight;
@@ -751,13 +750,48 @@
                     // Put into canvas container
                     canvas.innerHTML = "";
                     canvas.appendChild(draw);
-
+                    console.log(stream);
+                    var myInput = document.getElementById('file-type');
+                    var file = myInput.files[0];
+                    console.log(file, 'file');
                 });
             })
+            /*
+                            let recordedBlob = new Blob(recordedChunks, {
+                                type: "video/webm"
+                            });
+                            take.src = URL.createObjectURL(recordedBlob);
+                            console.log(recordedBlob);
+                            console.log(recording);*/
             .catch(function (err) {
                 document.getElementById("vid-controls").innerHTML = "Please enable access and attach a camera";
             });
+
     });
+
+    function getStream() {
+        if (window.stream) {
+            window.stream.getTracks().forEach(function (track) {
+                track.stop();
+            });
+        }
+
+        const constraints = {
+            audio: {
+                deviceId: {exact: audioSelect.value}
+            },
+            video: {
+                deviceId: {exact: videoSelect.value}
+            }
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints).then(gotStream).catch(handleError);
+    }
+
+    function gotStream(stream) {
+        window.stream = stream; // make stream available to console
+        videoElement.srcObject = stream;
+    }
 </script>
 </div>
 </body>
