@@ -4,6 +4,8 @@ import pymysql
 import MySQLdb.cursors
 import os
 
+from werkzeug.utils import secure_filename
+
 from base64 import b64encode
 
 app = Flask(__name__)
@@ -15,6 +17,7 @@ app.config['MYSQL_PASSWORD'] = ''
 app.config['MYSQL_DB'] = 'veindetection'
 mysql = MySQL(app)
 patientids = ''
+
 
 class Database:
     def __init__(self):
@@ -96,7 +99,18 @@ def home():
     return redirect('login')
 
 
-def convertToBinaryDataFile(filename):
+app.config['IMAGE_UPLOADS'] = "C:/Users/Kenichi/PycharmProjects/VainDetectionWeb/static/img/uploads"
+app.config['ALLOWED_IMAGE_EXTENSIONS'] = ["PNG", "JPG", "JPEG", "GIF"]
+
+
+def allowed_image(filename):
+    if not "." in filename:
+        return False
+
+    ext = filename.rsplit(".", 1)[1]
+
+
+def convertToBinaryData(filename):
     # Convert digital data to binary format
     with open(filename, 'rb') as file:
         binaryData = file.read()
@@ -121,25 +135,22 @@ def insert():
         email = request.form['email']
         birthdate = request.form['birthdate']
         birthplace = request.form['birthplace']
-        if request.form.get('filePath') is None:
-            _filePath = ''
-        else:
-            _filePath = request.form.get('filePath')
-        if request.form.get('private') is None:
-            _private = 0
-        else:
-            _private = 1
-        if request.form.get('done') is None:
-            _done = 0
-        else:
-            _done = 1
+        file = request.files['file']
+        filename = file.filename
+        ext = file.filename.rsplit(".", 1)[1]
+
+        file.save(os.path.join(app.config['IMAGE_UPLOADS'], file.filename))
+
+        photo = convertToBinaryData(
+            "C:/Users/Kenichi/PycharmProjects/VainDetectionWeb/static/img/uploads/" + file.filename)
+        print(photo)
 
         cur = mysql.connection.cursor()
         cur.execute("INSERT INTO patients_data_table "
-                    "(patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode, nationality, civilstatus, email, birthdate, birthplace) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (
+                    "(patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode, nationality, civilstatus, email, birthdate, birthplace, filename, veinimage) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", (
                         patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode,
-                        nationality, civilstatus, email, birthdate, birthplace, _filePath))
+                        nationality, civilstatus, email, birthdate, birthplace, filename, photo))
         mysql.connection.commit()
         return redirect(url_for('home'))
 
@@ -162,26 +173,58 @@ def updateData():
         email = request.form['email']
         birthdate = request.form['birthdate']
         birthplace = request.form['birthplace']
+        file = request.files['file']
         cur = mysql.connection.cursor()
-        cur.execute("""
-                   UPDATE patients_data_table
-                   SET patientid=%s, firstname=%s, lastname=%s, middlename=%s, phonenumber=%s, address=%s, city=%s, municipality=%s, zipcode=%s, nationality=%s, civilstatus=%s, email=%s, birthdate=%s, birthplace=%s
-                   WHERE id=%s
-                """, (
-            patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode, nationality,
-            civilstatus, email, birthdate, birthplace, id))
+
+        if file != '':
+            file.save(os.path.join(app.config['IMAGE_UPLOADS'], file.filename))
+
+            photo = convertToBinaryData(
+                "C:/Users/Kenichi/PycharmProjects/VainDetectionWeb/static/img/uploads/" + file.filename)
+
+            cur.execute("""
+                               UPDATE patients_data_table
+                               SET patientid=%s, firstname=%s, lastname=%s, middlename=%s, phonenumber=%s, address=%s, city=%s, municipality=%s, zipcode=%s, nationality=%s, civilstatus=%s, email=%s, birthdate=%s, birthplace=%s, filename=%s, veinimage=%s
+                               WHERE id=%s
+                            """, (
+                patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode,
+                nationality,
+                civilstatus, email, birthdate, birthplace, file.filename, photo, id))
+        else:
+            cur.execute("""
+                               UPDATE patients_data_table
+                               SET patientid=%s, firstname=%s, lastname=%s, middlename=%s, phonenumber=%s, address=%s, city=%s, municipality=%s, zipcode=%s, nationality=%s, civilstatus=%s, email=%s, birthdate=%s, birthplace=%s
+                               WHERE id=%s
+                            """, (
+                patientid, firstname, lastname, middlename, phonenumber, address, city, municipality, zipcode,
+                nationality,
+                civilstatus, email, birthdate, birthplace, id))
+
         flash("Data Updated Successfully")
         mysql.connection.commit()
-        return redirect(url_for('myApp'))
+        return redirect(url_for('home'))
 
 
-@app.route('/delete/<string:id>', methods=['POST'])
-def delete(id):
+@app.route('/delete/<int:id>', methods=['POST'])
+def delete_patient(id):
     cur = mysql.connection.cursor()
     cur.execute("DELETE FROM patients_data_table WHERE id=%s", (id,))
     mysql.connection.commit()
     flash("Record Has Been Deleted Successfully")
-    return redirect(url_for('myApp'))
+    """ try:
+        conn = mysql.connect()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tbl_user WHERE user_id=%s", (id,))
+        conn.commit()
+        resp = jsonify('User deleted successfully!')
+        resp.status_code = 200
+        return resp
+    except Exception as e:
+        print(e)
+    finally:
+        cursor.close()
+        conn.close()"""
+    return redirect(url_for('home'))
 
 
 @app.route('/profileinformation/<patientid>')

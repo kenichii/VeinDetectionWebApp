@@ -11,6 +11,12 @@
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="/static/js/jquery-3.1.1.js"></script>
+    <script src="/static/js/jquery.ui.widget.js"></script>
+
+    <script type="text/javascript" src="/static/js/jquery.fileupload.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.fileupload-process.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.fileupload-ui.js"></script>
     <style type="text/css">
         body {
             color: #566787;
@@ -408,6 +414,9 @@
                             {% if row.veinimage != '' %}
                                 <img src="data:;base64,{{ row.veinimage }}" width="100"/>
                             {% endif %}
+                            {#{% if row.filename != '' %}
+                                <img src="../static/img/uploads/{{ row.filename }}" width="100"/>
+                            {% endif %}#}
                         </td>
                         <td>
                             <a class="eye"
@@ -439,7 +448,7 @@
                             <div id="editPatientModal{{ row.patientId }}" class="modal fade">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
-                                        <form action="{{ url_for('updateData') }}" method="POST">
+                                        <form action="{{ url_for('updateData') }}" method="POST" enctype="multipart/form-data">
                                             <div class="modal-header">
                                                 <h4 class="modal-title">Edit Patient</h4>
                                                 <button type="button" class="close" data-dismiss="modal"
@@ -551,6 +560,26 @@
                                                                    required>
                                                         </div>
                                                     </div>
+                                                    <div class="form-group">
+                                                        <label for="txtPost">Photo</label>
+                                                        <div class="input-group">
+                                                                <span class="input-group-btn">
+                                                                <span class="btn btn-primary btn-file">
+                                                                    Browse… <input type="file" id="fileupload"
+                                                                                   name="file" multiple>
+                                                                </span>
+                                                                </span>
+                                                            <input type="text" class="form-control"
+                                                                   style="display: none;" readonly>
+                                                        </div>
+
+                                                    </div>
+                                                    <div>
+                                                        {% if row.veinimage != '' %}
+                                                            <img src="data:;base64,{{ row.veinimage }}"
+                                                                 width="100"/>
+                                                        {% endif %}
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
@@ -612,7 +641,7 @@
 <div id="addEmployeeModal" class="modal fade">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form action="{{ url_for('insert') }}" method="POST">
+            <form action="{{ url_for('insert') }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-header">
                     <h4 class="modal-title">Add Patient</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
@@ -687,22 +716,34 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <div class="container">
-                                    <div id="vid-controls">
+                                    {#<div id="vid-controls">
                                         <video class="image-canvas"
                                                style="max-height: 110px;"
                                                id="vid-show"
                                                autoplay></video>
                                         <button onclick="capture()">Capture</button>
                                         <input id="vid-take" type="button" value="Take Photo"/>
+                                    </div>#}
+                                    <div class="form-group">
+                                        <label for="txtPost">Photo</label>
+                                        <div class="input-group">
+                                            <span class="input-group-btn">
+                                            <span class="btn btn-primary btn-file">
+                                                Browse… <input type="file" id="fileupload" name="file" multiple>
+                                            </span>
+                                            </span>
+                                            <input type="text" class="form-control" style="display: none;" readonly>
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div id="vid-canvas"
+                            {#  <div id="vid-canvas"
                                  class="image-preview"
                                  style="height: 110px;"></div>
-                            <input id="file-type" type="file" accept="image/*;capture=camera"/>
+                            <input id="file-type" type="file" accept="image/*;capture=camera"/>#}
                         </div>
                     </div>
                 </div>
@@ -719,7 +760,7 @@
     </div>
 </div>
 <script>
-    function capture() {
+    /*function capture() {
         document.getElementById("vid-show").style.display = "block";
     }
 
@@ -751,18 +792,8 @@
                     canvas.innerHTML = "";
                     canvas.appendChild(draw);
                     console.log(stream);
-                    var myInput = document.getElementById('file-type');
-                    var file = myInput.files[0];
-                    console.log(file, 'file');
                 });
             })
-            /*
-                            let recordedBlob = new Blob(recordedChunks, {
-                                type: "video/webm"
-                            });
-                            take.src = URL.createObjectURL(recordedBlob);
-                            console.log(recordedBlob);
-                            console.log(recording);*/
             .catch(function (err) {
                 document.getElementById("vid-controls").innerHTML = "Please enable access and attach a camera";
             });
@@ -791,7 +822,7 @@
     function gotStream(stream) {
         window.stream = stream; // make stream available to console
         videoElement.srcObject = stream;
-    }
+    }*/
 </script>
 </div>
 </body>
